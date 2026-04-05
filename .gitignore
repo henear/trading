@@ -1,0 +1,15 @@
+# Maven
+backend/target/
+backend/.mvn/
+
+# IDE
+backend/.idea/
+*.iml
+.DS_Store
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Env
+*.env
