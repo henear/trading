@@ -1,8 +1,10 @@
 package com.trading.controller;
 
+import com.trading.entity.StockQueryRecord;
 import com.trading.model.AnalysisResult;
 import com.trading.model.NewsItem;
 import com.trading.model.StockQuote;
+import com.trading.repository.StockQueryRecordRepository;
 import com.trading.service.DeepSeekService;
 import com.trading.service.YahooFinanceService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class StockController {
 
     private final YahooFinanceService yahooFinanceService;
     private final DeepSeekService deepSeekService;
+    private final StockQueryRecordRepository stockQueryRecordRepository;
 
     /**
      * GET /api/stocks/quote?symbol=AAPL
@@ -32,6 +35,17 @@ public class StockController {
         log.info("Fetching quote for: {}", symbol);
         try {
             StockQuote quote = yahooFinanceService.getQuote(symbol);
+            stockQueryRecordRepository.save(StockQueryRecord.builder()
+                    .symbol(quote.getSymbol())
+                    .price(quote.getPrice())
+                    .change(quote.getChange())
+                    .changePercent(quote.getChangePercent())
+                    .volume(quote.getVolume())
+                    .dayHigh(quote.getDayHigh())
+                    .dayLow(quote.getDayLow())
+                    .currency(quote.getCurrency())
+                    .queriedAt(LocalDateTime.now())
+                    .build());
             return ResponseEntity.ok(quote);
         } catch (Exception e) {
             log.error("Error fetching quote for {}: {}", symbol, e.getMessage());
