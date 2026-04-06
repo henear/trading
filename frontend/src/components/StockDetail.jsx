@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getQuote, getAnalysis } from '../api/stockApi'
+import { getQuote, getNews, getAnalysis } from '../api/stockApi'
 
 function formatPrice(price) {
   return price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -25,10 +25,13 @@ function renderAnalysis(text) {
 
 export default function StockDetail({ symbol }) {
   const [quote, setQuote] = useState(null)
+  const [news, setNews] = useState(null)
   const [analysis, setAnalysis] = useState(null)
   const [loadingQuote, setLoadingQuote] = useState(false)
+  const [loadingNews, setLoadingNews] = useState(false)
   const [loadingAnalysis, setLoadingAnalysis] = useState(false)
   const [quoteError, setQuoteError] = useState('')
+  const [newsError, setNewsError] = useState('')
   const [analysisError, setAnalysisError] = useState('')
 
   const fetchQuote = useCallback(async () => {
@@ -45,8 +48,26 @@ export default function StockDetail({ symbol }) {
     }
   }, [symbol])
 
+  const fetchNews = useCallback(async () => {
+    if (!symbol) return
+    setLoadingNews(true)
+    setNewsError('')
+    try {
+      const res = await getNews(symbol)
+      setNews(res.data)
+    } catch {
+      setNewsError('Failed to load news')
+    } finally {
+      setLoadingNews(false)
+    }
+  }, [symbol])
+
   const fetchAnalysis = useCallback(async () => {
     if (!symbol) return
+    if (!news || news.length === 0) {
+      setAnalysisError("Can't analyze: no sufficient info offered. Please fetch news first.")
+      return
+    }
     setLoadingAnalysis(true)
     setAnalysisError('')
     try {
@@ -57,11 +78,12 @@ export default function StockDetail({ symbol }) {
     } finally {
       setLoadingAnalysis(false)
     }
-  }, [symbol])
+  }, [symbol, news])
 
   useEffect(() => {
     if (symbol) {
       setQuote(null)
+      setNews(null)
       setAnalysis(null)
       fetchQuote()
     }
@@ -132,8 +154,51 @@ export default function StockDetail({ symbol }) {
         </div>
       </div>
 
-      {/* AI Analysis Section */}
+      {/* News Section */}
       <div className="section-title">
+        Latest News
+      </div>
+
+      <div className="analyze-btn-row">
+        <button className="refresh-btn" onClick={fetchNews} disabled={loadingNews}>
+          {loadingNews
+            ? <><span className="loading-spinner" /> Fetching...</>
+            : news ? 'Refresh News' : 'Fetch News'}
+        </button>
+      </div>
+
+      {newsError && <div className="error-text" style={{ marginBottom: 14 }}>{newsError}</div>}
+
+      {news && !loadingNews && (
+        news.length > 0 ? (
+          <div className="news-list">
+            {news.map((item, i) => (
+              <div className="news-item" key={i}>
+                <a href={item.link} target="_blank" rel="noopener noreferrer">
+                  {item.title}
+                </a>
+                <div className="news-meta">
+                  <div className="publisher">{item.publisher}</div>
+                  <div className="date">{item.publishedAt}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: '#484f58', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>
+            No recent news found for this symbol.
+          </div>
+        )
+      )}
+
+      {!news && !loadingNews && (
+        <div style={{ color: '#484f58', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>
+          Click "Fetch News" to load recent headlines
+        </div>
+      )}
+
+      {/* AI Analysis Section */}
+      <div className="section-title" style={{ marginTop: 24 }}>
         AI Investment Strategy
         <span className="tag">Powered by DeepSeek</span>
       </div>
@@ -152,36 +217,12 @@ export default function StockDetail({ symbol }) {
       {analysisError && <div className="error-text" style={{ marginBottom: 14 }}>{analysisError}</div>}
 
       {analysis && !loadingAnalysis && (
-        <>
-          <div className="analysis-box">
-            {renderAnalysis(analysis.analysis)}
-          </div>
-
-          {/* News used for analysis */}
-          {analysis.news?.length > 0 && (
-            <>
-              <div className="section-title" style={{ marginTop: 24 }}>
-                News Sources <span className="tag">{analysis.news.length} articles</span>
-              </div>
-              <div className="news-list">
-                {analysis.news.map((item, i) => (
-                  <div className="news-item" key={i}>
-                    <a href={item.link} target="_blank" rel="noopener noreferrer">
-                      {item.title}
-                    </a>
-                    <div className="news-meta">
-                      <div className="publisher">{item.publisher}</div>
-                      <div className="date">{item.publishedAt}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
+        <div className="analysis-box">
+          {renderAnalysis(analysis.analysis)}
+        </div>
       )}
 
-      {!analysis && !loadingAnalysis && (
+      {!analysis && !loadingAnalysis && !analysisError && (
         <div style={{ color: '#484f58', fontSize: '0.85rem', textAlign: 'center', padding: '24px 0' }}>
           Click "Analyze with AI" to get an investment strategy based on latest news
         </div>

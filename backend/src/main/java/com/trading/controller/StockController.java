@@ -1,9 +1,11 @@
 package com.trading.controller;
 
+import com.trading.entity.StockNewsRecord;
 import com.trading.entity.StockQueryRecord;
 import com.trading.model.AnalysisResult;
 import com.trading.model.NewsItem;
 import com.trading.model.StockQuote;
+import com.trading.repository.StockNewsRecordRepository;
 import com.trading.repository.StockQueryRecordRepository;
 import com.trading.service.DeepSeekService;
 import com.trading.service.YahooFinanceService;
@@ -25,6 +27,7 @@ public class StockController {
     private final YahooFinanceService yahooFinanceService;
     private final DeepSeekService deepSeekService;
     private final StockQueryRecordRepository stockQueryRecordRepository;
+    private final StockNewsRecordRepository stockNewsRecordRepository;
 
     /**
      * GET /api/stocks/quote?symbol=AAPL
@@ -62,6 +65,13 @@ public class StockController {
         log.info("Fetching news for: {}", symbol);
         try {
             List<NewsItem> news = yahooFinanceService.getNews(symbol);
+            news.forEach(item -> stockNewsRecordRepository.save(StockNewsRecord.builder()
+                    .symbol(symbol.toUpperCase())
+                    .title(item.getTitle())
+                    .link(item.getLink())
+                    .publisher(item.getPublisher())
+                    .publishedAt(item.getPublishedAt())
+                    .build()));
             return ResponseEntity.ok(news);
         } catch (Exception e) {
             log.error("Error fetching news for {}: {}", symbol, e.getMessage());
